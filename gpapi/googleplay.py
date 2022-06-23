@@ -365,9 +365,15 @@ class GooglePlayAPI(object):
                                     timeout=60,
                                     proxies=self.proxies_config)
 
-        message = googleplay_pb2.ResponseWrapper.FromString(response.content)
-        if message.commands.displayErrorMessage != "":
-            raise RequestError(message.commands.displayErrorMessage)
+        try:
+            message = googleplay_pb2.ResponseWrapper.FromString(response.content)
+            if message.commands.displayErrorMessage != "":
+                raise RequestError(message.commands.displayErrorMessage)
+        except Exception as e:
+            if not isinstance(e, RequestError) and not response.ok:
+                response.raise_for_status()
+            else:
+                raise e
 
         return message
 
@@ -621,24 +627,31 @@ class GooglePlayAPI(object):
                                 params=params, verify=ssl_verify,
                                 timeout=60,
                                 proxies=self.proxies_config)
-        response = googleplay_pb2.ResponseWrapper.FromString(response.content)
-        if response.commands.displayErrorMessage != "":
-            raise RequestError(response.commands.displayErrorMessage)
-        elif response.payload.deliveryResponse.appDeliveryData.downloadUrl == "":
-            raise RequestError('App not purchased')
+
+        try:
+            message = googleplay_pb2.ResponseWrapper.FromString(response.content)
+            if message.commands.displayErrorMessage != "":
+                raise RequestError(message.commands.displayErrorMessage)
+            elif message.payload.deliveryResponse.status == 3:
+                raise RequestError('App not purchased')
+        except Exception as e:
+            if not isinstance(e, RequestError) and not response.ok:
+                response.raise_for_status()
+            else:
+                raise e
         else:
             result = {}
             result['docId'] = packageName
             result['additionalData'] = []
             result['splits'] = []
-            downloadUrl = response.payload.deliveryResponse.appDeliveryData.downloadUrl
-            cookie = response.payload.deliveryResponse.appDeliveryData.downloadAuthCookie[0]
+            downloadUrl = message.payload.deliveryResponse.appDeliveryData.downloadUrl
+            cookie = message.payload.deliveryResponse.appDeliveryData.downloadAuthCookie[0]
             cookies = {
                 str(cookie.name): str(cookie.value)
             }
             result['file'] = self._deliver_data(downloadUrl, cookies)
 
-            for split in response.payload.deliveryResponse.appDeliveryData.split:
+            for split in message.payload.deliveryResponse.appDeliveryData.split:
                 a = {}
                 a['name'] = split.name
                 a['file'] = self._deliver_data(split.downloadUrl, None)
@@ -646,7 +659,7 @@ class GooglePlayAPI(object):
 
             if not expansion_files:
                 return result
-            for obb in response.payload.deliveryResponse.appDeliveryData.additionalFile:
+            for obb in message.payload.deliveryResponse.appDeliveryData.additionalFile:
                 a = {}
                 # fileType == 0 -> main
                 # fileType == 1 -> patch
@@ -695,11 +708,17 @@ class GooglePlayAPI(object):
                                  timeout=60,
                                  proxies=self.proxies_config)
 
-        response = googleplay_pb2.ResponseWrapper.FromString(response.content)
-        if response.commands.displayErrorMessage != "":
-            raise RequestError(response.commands.displayErrorMessage)
+        try:
+            message = googleplay_pb2.ResponseWrapper.FromString(response.content)
+            if message.commands.displayErrorMessage != "":
+                raise RequestError(message.commands.displayErrorMessage)
+        except Exception as e:
+            if not isinstance(e, RequestError) and not response.ok:
+                response.raise_for_status()
+            else:
+                raise e
         else:
-            dlToken = response.payload.buyResponse.downloadToken
+            dlToken = message.payload.buyResponse.downloadToken
             return self.delivery(packageName, versionCode, offerType, dlToken,
                                  expansion_files=expansion_files)
 

@@ -1,5 +1,6 @@
 import struct
 import sys
+import re
 from google.protobuf.message import Message
 from google.protobuf.json_format import MessageToDict
 from . import googleplay_pb2
@@ -76,3 +77,7 @@ def hasDoc(obj):
             existance = False
 
     return existance
+
+def stripHtmlTags(raw_html):
+    REGRET = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
+    return re.sub(REGRET, '', raw_html)
